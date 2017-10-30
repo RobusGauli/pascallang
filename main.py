@@ -1,6 +1,6 @@
 #contract
 
-INTEGER, PLUS, EOF = 'INTEGER', 'PLUS', 'EOF'
+INTEGER, PLUS, MINUS,  EOF = 'INTEGER', 'PLUS', 'MINUS', 'EOF'
 
 class Token:
 
@@ -14,62 +14,62 @@ class Token:
 class Interpreter:
 
     def __init__(self, text):
+        if not text.strip():
+            raise ValueError('parsing error')
         self.text = text
-        self.pos = 0
+        self.current_pos = 0
+        self.current_char = self.text[self.current_pos]
         self.current_token = None
     
-    def get_next_token(self):
-        '''lexical analyzer and scanner or lexer or tokenizer'''
-        if self.pos  >= len(self.text):
-            return Token(EOF)
-
-        current_text = self.text[self.pos]
-
-        if current_text.isdigit():
-            return Token(INTEGER, int(current_text))
-        if current_text == '+':
-            return Token(PLUS, current_text)
-
-        self.error('Error Parsing') #if nothing is parsed
-        
-    
     def advance(self):
-        #advance the position
-        self.pos += 1
-
-    def expr(self):
-        #expect the text to be INTEGER, PLUS,  INTEGER
-        l_integer_token = self.get_next_token()
-        self.eat(l_integer_token, INTEGER)
-        self.advance()
+        self.current_pos += 1
+        print(self.current_pos, len(self.text))
+        if self.current_pos > len(self.text):
+            self.current_char = None
+            raise ValueError('EOF')
         
-        plus_token = self.get_next_token()
-        self.eat(plus_token, PLUS)
-        self.advance()
+        self.current_char = self.text[self.current_pos]
 
-        r_integer_token = self.get_next_token()
-        self.eat(r_integer_token, INTEGER)
-        self.advance()
+    def integer(self):
+        result = ''
+        while self.current_char.isdigit():
+            result += self.current_char
+            self.advance()
+        return result
 
-        return l_integer_token.val + r_integer_token.val
+    def get_next_token(self):
+        while self.current_char:
+            if self.current_char.isspace() or self.current_char == '\n':
+                self.advance()
+                continue
+            if self.current_char.isdigit():
+                return Token(INTEGER, self.integer())
 
+            if self.current_char == '+':
+                self.advance()
+                return Token(PLUS, '+')
+            
+            if self.current_char == '-':
+                self.advance()
+                return Token(MINUS, '-')
+            self.error('Error parsing')
+        return Token(EOF)
+
+    def error(self, msg):
+        raise Exception(msg)
     
-    def eat(self, token, expected_token_type):
-        if token.token_type != expected_token_type:
-            #then it is the right token so hence 
-            self.error('Error parsing the output')
 
-    def error(self, error_message):
-        raise Exception(error_message)
-        
+            
+
 def main():
     while True:
         text = input('>>>')
         if text.strip() == 'exit':
             break
         ipr = Interpreter(text)
-        result = ipr.expr()
+        #result = ipr.expr()
 
-        print('got', result)
+        #print('got', result)
 
-main()
+# if __name__ == '__main__':
+#     main()
