@@ -1,5 +1,5 @@
 
-INTEGER, PLUS, EOF = 'INTEGER', 'PLUS', 'EOF'
+INTEGER, PLUS, EOF, MINUS, MULT, DIV = 'INTEGER', 'PLUS', 'EOF', 'MINUS', 'MULT', 'DIV'
 
 class Token:
 
@@ -14,69 +14,51 @@ class Token:
 
 class Interpreter:
 
-
     def __init__(self, text):
         self.text = text
         self.position = 0
-        self.current_token = None
     
 
     def get_next_token(self):
-        #chec the first character 
-        if self.position >= len(self.text) - 1:
-            raise ValueError('EOF file')
-        #we ignore the white space
-        while True:
+        if self.current_character is not None:
             if self.current_character.isspace():
-                self.advance()
-                continue
-            else:
-                break
-
-        if self.current_character.isdigit():
-            _token = Token(INTEGER, self.integer())
-            #self.advance() #this helps point to next value
-            return _token
-            
-        if self.current_character == '+':
-            _token = Token(PLUS, '+')
+                self.skipspace()
+            if self.current_character.isdigit():
+                return Token(INTEGER, self.integer())
+            #that means we cannot parse it
+            self.error('Error parsing the value')
+        else:
+            return Token(EOF)
+    
+    def error(self, text):
+        raise Exception(text)
+    
+    
+    def integer(self):
+        _val = ''
+        while self.current_character is not None and self.current_character.isdigit():
+            _val += self.current_character
             self.advance()
-            return _token
+        return _val
 
+    def skipspace(self):
+        while self.current_character is not None and self.current_character.isspace():
+            self.advance()
 
     def advance(self):
-        if not self.position >= len(self.text) - 1:
+        self.position += 1
 
-            self.position += 1
-        else:
-            raise ValueError('EOF error while advancing')
+    def expr(self):
+        pass
 
-    def integer(self):
-        _val = self.current_character
-        while True:
-            try:
-                self.advance()
-            except ValueError:
-                return _val
-            if self.current_character.isdigit():
-                _val += self.current_character
-            else:
-                break
-        return _val
 
     @property
     def current_character(self):
-        return self.text[self.position]
-    
-    @property
-    def peek(self):
-        return self.text[self.position + 1]
-
-    def expr(self):
-        #we are expecting '45 + 324'
-        integer_token = self.get_next_token()
-        print(integer_token)
-
+        #current character can be None if it reaches the EOF 
+        if self.position >=  len(self.text) - 1:
+            return None
+        else:
+            return self.text[self.position]
 def main():
     while True:
         i = input('>>>> ')
