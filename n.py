@@ -23,7 +23,7 @@ class Interpreter:
 
     def get_next_token(self):
         #chec the first character 
-        if self.position >= len(self.text):
+        if self.position >= len(self.text) - 1:
             raise ValueError('EOF file')
         #we ignore the white space
         while True:
@@ -35,19 +35,42 @@ class Interpreter:
 
         if self.current_character.isdigit():
             _token = Token(INTEGER, self.integer())
-            self.advance() #this helps point to next value
+            #self.advance() #this helps point to next value
+            return _token
+            
+        if self.current_character == '+':
+            _token = Token(PLUS, '+')
+            self.advance()
             return _token
 
 
     def advance(self):
-        self.position += 1
+        if not self.position >= len(self.text) - 1:
+
+            self.position += 1
+        else:
+            raise ValueError('EOF error while advancing')
 
     def integer(self):
-        return self.current_character
+        _val = self.current_character
+        while True:
+            try:
+                self.advance()
+            except ValueError:
+                return _val
+            if self.current_character.isdigit():
+                _val += self.current_character
+            else:
+                break
+        return _val
 
     @property
     def current_character(self):
         return self.text[self.position]
+    
+    @property
+    def peek(self):
+        return self.text[self.position + 1]
 
     def expr(self):
         #we are expecting '45 + 324'
