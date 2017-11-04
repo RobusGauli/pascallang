@@ -41,6 +41,18 @@ mult_op = Binop(mult_token, Numop(Token(INTEGER, 45)), Numop(Token(INTEGER, 55))
 add_op = Binop(Token(PLUS), mult_op, Numop(Token(INTEGER, 100)))
 
 
+class NodeVisitor:
+
+    def __init__(self, ast):
+        self.ast = ast
+        self.current_left_operand = None
+        self.current_right_operand = None
+        self.current_operator = None
+    
+    def traverse(self):
+        
+
+
 
 
         
