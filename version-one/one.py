@@ -87,6 +87,32 @@ class Lexer:
 #understand
 #it is also sometimes called syntax analyzer
 #since it basically checks the grammar rule and cries out if it doesn not matched
+'''AST data strucutor'''
+
+class AST:
+
+    def __init__(self, token):
+        self.token = token
+
+class Binop(AST):
+    def __init__(self, op, left, right):
+        self.op = op
+        self.left = left
+        self.right = right
+        super().__init__(op)
+
+    def __repr__(self):
+        return 'Binop({})'.format(self.op)
+
+class Numop(AST):
+
+    def __init__(self, token):
+        self.value = token.value
+        super().__init__(token)
+    
+    def __repr__(self):
+        return 'Numop({})'.format(self.value)
+
 
 class Parser:
 
@@ -116,6 +142,54 @@ class Parser:
     def factor(self):
         _token = self.current_token
         self.eat(INTEGER)
-        return _token.value
+        return Numop(_token)
+    
+    def term(self):
+        _result = self.factor()
+        while self.current_token.type in (MULT, DIV):
+            _current_token = self.current_token
+            if _current_token.type == MULT:
+                self.eat(MULT)
+                
+            elif _current_token.type == DIV:
+                self.eat(DIV)
+            return Binop(_current_token, _result, self.factor())
+                
+                
+        return _result
+
+    def expr(self):
+        _result = self.term()
+        while self.current_token.type in (ADD, SUB):
+            _current_token = self.current_token
+            if _current_token.type == ADD:
+                self.eat(ADD)
+                
+            elif _current_token.type == SUB:
+                self.eat(SUB)
+            return Binop(_current_token, _result, self.term())
+        return _result
+
     def error(self):
         raise Exception('Syntax Error || Parsing error')
+
+
+def main():
+    while True:
+        try:
+
+            input_text = input('>>>')
+            if not input_text:
+                continue
+            if input_text.strip() == 'quit':
+                break
+
+            l = Lexer(input_text)
+            parser = Parser(l)
+            return parser.expr()
+
+        except EOFError:
+            break
+
+if __name__ == '__main__':
+    main()
