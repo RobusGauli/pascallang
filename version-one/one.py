@@ -3,6 +3,7 @@
 ADD, SUB, MULT, DIV = 'ADD', 'SUB', 'MULT', 'DIV'
 INTEGER, FLOAT = 'INTEGER', 'FLOAT'
 EOF = 'EOF'
+LPAREN, RPAREN = 'LPAREN', 'RPAREN'
 
 class Token:
     
@@ -22,6 +23,9 @@ div_token = lambda: Token(DIV)
 
 integer_token = lambda val: Token(INTEGER, val)
 float_token = lambda val: Token(FLOAT, val)
+
+lparen_token = lambda: Token(LPAREN)
+rparen_token = lambda: Token(RPAREN)
 
 
 class Lexer:
@@ -57,6 +61,13 @@ class Lexer:
         if self.current_character == '/':
             self.advance()
             return div_token()
+        if self.current_character == '(':
+            self.advance()
+            return lparen_token()
+        if self.current_character == ')':
+            self.advance()
+            return rparen_token()
+
         
         self.error()
 
@@ -141,8 +152,15 @@ class Parser:
         
     def factor(self):
         _token = self.current_token
-        self.eat(INTEGER)
-        return Numop(_token)
+        if _token.type == INTEGER:
+            self.eat(INTEGER)
+            return Numop(_token)
+        if _token.type == LPAREN:
+            self.eat(LPAREN)
+            expr_node = self.expr()
+            self.eat(RPAREN)
+            return expr_node
+        self.error()
     
     def term(self):
         _result = self.factor()
@@ -170,10 +188,44 @@ class Parser:
             return Binop(_current_token, _result, self.term())
         return _result
 
+    parse = lambda self: self.expr()
+
     def error(self):
         raise Exception('Syntax Error || Parsing error')
 
 
+'''Interpreter class that interprets the Intermediate representation / AST
+    --> using Post Order depth first traversal
+    --> pre order || in order || post order 
+
+
+'''
+
+class Interpreter:
+
+    def __init__(self, parser):
+        self.parser = parser
+    
+    def evaluate(self, ast):
+        if isinstance(ast, Numop):
+            return ast.value
+        return self.calc(ast.token, self.evaluate(ast.left), self.evaluate(ast.right))
+
+    def calc(self, op, op_a, op_b):
+        if op.type == ADD:
+            return op_a + op_b
+        if op.type == MULT:
+            return op_a * op_b
+        if op.type == SUB:
+            return op_a - op_b
+        if op.type == DIV:
+            return op_a / op_b
+
+
+    
+    def interpret(self):
+        return self.evaluate(self.parser.parse())
+        
 def main():
     while True:
         try:
@@ -184,9 +236,12 @@ def main():
             if input_text.strip() == 'quit':
                 break
 
-            l = Lexer(input_text)
-            parser = Parser(l)
-            return parser.expr()
+            lexer = Lexer(input_text)
+            parser = Parser(lexer)
+            interpreter = Interpreter(parser)
+            print(interpreter.interpret())
+
+            
 
         except EOFError:
             break
