@@ -75,7 +75,7 @@ class Lexer:
     @property
     def ahead_character(self):
         _ahead = self.current_position + 1
-        if _ahead >= self(self.text):
+        if _ahead >= len(self.text):
             return None
         return self.text[_ahead]
     
@@ -192,7 +192,9 @@ class AssignNode(AST):
         return 'Assign Node'
 
 class Noop(AST):
-    pass
+    
+    def __init__(self):
+        super().__init__(None)
 
 class Var(AST):
 
@@ -222,12 +224,17 @@ class Parser:
         self.eat(BEGIN)
         _statement_list = self.statement_list()
         self.eat(END)
-        return _statment_list
+        compound_node = CompoundNode()
+        for node in _statement_list:
+            compound_node.statements_nodes.append(node)
+
+        return compound_node
 
     def statement_list(self):
         _statement_node = self.statement()
         _statment_nodes = [_statement_node]
         while self.current_token.type == SEMI:
+            self.eat(SEMI)
             _statment_nodes.extend(self.statement_list())
         return _statment_nodes
 
@@ -239,8 +246,8 @@ class Parser:
         return Noop()
 
     def assignment_statement(self):
-        id_token = self.current_token
-        self.eat(ID)
+        id_node = self.variable()
+        
         self.eat(ASSIGN)
         return AssignNode(id_token, self.expr())
 
@@ -248,7 +255,9 @@ class Parser:
         return Noop()
 
     def variable(self):
-        return Var(self.current_token)
+        _token = self.current_token
+        self.eat(ID)
+        return Var(_token)
 
 
     def error(self):
@@ -279,8 +288,8 @@ class Parser:
             self.eat(RPAREN)
             return _node
         if _token.type == ID:
-            self.eat(ID)
-            return Var(_token)
+            
+            return self.variable()
         
         self.error()
     
