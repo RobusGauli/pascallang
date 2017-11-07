@@ -5,9 +5,19 @@ EOF = 'EOF'
 LPAREN, RPAREN = 'LPAREN', 'RPAREN'
 INTEGER, FLOAT = 'INTEGER', 'FLOAT'
 
+#specific to pascal
+BEGIN, END = 'BEGIN', 'END'
+DOT = 'DOT'
+SEMI = 'SEMI'
+ID = 'ID' #identifier
+ASSIGN = 'ASSIGN'
+
+
 #character token mapper
 
 ch_token = {}
+
+
 
 def register(ch, func):
     ch_token[ch] = func
@@ -36,6 +46,19 @@ rparen_token = register(')', lambda: Token(RPAREN, ')'))
 integer_token = lambda val: Token(INTEGER, val)
 float_token = lambda val: Token(FLOAT, val)
 
+begin_token = lambda: Token(BEGIN, 'BEGIN')
+end_token = lambda: Token(END, 'END')
+
+dot_token = lambda: Token(DOT, 'DOT')
+semi_token = lambda: Token(SEMI, SEMI)
+id_token = lambda val: Token(ID, val)
+assign_token = lambda: Token(ASSIGN, ':=')
+
+
+RESERVED_KEYWORDS = {
+    'BEGIN': begin_token(),
+    'END': end_token()
+}
 
 class Lexer:
 
@@ -49,6 +72,23 @@ class Lexer:
             return None
         return self.text[self.current_position]
     
+    @property
+    def ahead_character(self):
+        _ahead = self.current_position + 1
+        if _ahead >= self(self.text):
+            return None
+        return self.text[_ahead]
+    
+    def _id(self):
+        #the current character is alpha
+        _result = ''
+        while self.current_character is not None and self.current_character.isalpha():
+            _result += self.current_character
+            self.advance()
+        return RESERVED_KEYWORDS.get(_result, id_token(_result))
+
+
+
     def integer(self):
         _result = ''
         while self.current_character is not None and self.current_character.isdigit():
@@ -63,9 +103,25 @@ class Lexer:
                 self.advance()
                 return _token()
             else:
+                if self.current_character.isalpha():
+                    return self._id()
+                if self.current_character == ':' and self.ahead_character == '=':
+                    self.advance()
+                    self.advance()
+                    return assign_token()
+                
+                if self.current_character == '.':
+                    self.advance()
+                    return dot_token()
+                
+                if self.current_character == ';':
+                    self.advance()
+                    return semi_token()
+
                 if self.current_character.isspace():
                     self.skipspace()
                     continue
+                
                 if self.current_character.isdigit():
                     return integer_token(int(self.integer()))
             self.error()
@@ -119,7 +175,30 @@ class Unop(AST):
         return 'Unop({})'.format(self.op)
 
 
-        
+class CompoundNode(AST):
+    def __init__(self):
+        #this contain the array of statemtnt nodes
+        self.statements_nodes = []
+    
+    def __repr__(self):
+        return 'CompoundNode()'
+
+class AssignNode(AST):
+    def __init__(self, var, expr):
+        self.var = var
+        self.expr = expr
+    
+    def __repr__(self):
+        return 'Assign Node'
+
+class Noop(AST):
+    pass
+
+class Var(AST):
+
+    def __init__(self, token):
+        super().__init__(token)
+        self.value = token.value
 
 class Parser:
     ''' streams of token to abstract syntax tree using the grammar as follow
@@ -134,6 +213,44 @@ class Parser:
         self.lexer = lexer
         self.current_token = self.lexer.get_next_token()
     
+    def program(self):
+        _compound_node = self.compound_statement()
+        self.eat(DOT)
+        return _compound_node
+
+    def compound_statement(self):
+        self.eat(BEGIN)
+        _statement_list = self.statement_list()
+        self.eat(END)
+        return _statment_list
+
+    def statement_list(self):
+        _statement_node = self.statement()
+        _statment_nodes = [_statement_node]
+        while self.current_token.type == SEMI:
+            _statment_nodes.extend(self.statement_list())
+        return _statment_nodes
+
+    def statement(self):
+        if self.current_token.type == BEGIN:
+            return self.compound_statement()
+        if self.current_token.type == ID:
+            return self.assignment_statement()
+        return Noop()
+
+    def assignment_statement(self):
+        id_token = self.current_token
+        self.eat(ID)
+        self.eat(ASSIGN)
+        return AssignNode(id_token, self.expr())
+
+    def empty(self):
+        return Noop()
+
+    def variable(self):
+        return Var(self.current_token)
+
+
     def error(self):
         raise Exception('Syntax/Parsing error')
     
@@ -142,6 +259,8 @@ class Parser:
             self.current_token = self.lexer.get_next_token()
         else:
             self.error()
+    
+    
     
     def factor(self):
         _token = self.current_token
@@ -159,6 +278,9 @@ class Parser:
             _node = self.expr()
             self.eat(RPAREN)
             return _node
+        if _token.type == ID:
+            self.eat(ID)
+            return Var(_token)
         
         self.error()
     
@@ -178,8 +300,53 @@ class Parser:
             self.eat(_current_token.type)
             _result = Binop(_current_token, _result,  self.term())
         return _result
+
+    parse = lambda self: self.expr()
+
+class Intepreter:
+
+    def __init__(self, parser):
+        self.parser = parser
     
+    def evaluate(self, ast):
+        if isinstance(ast, Numop):
+            return ast.value
+        if isinstance(ast, Unop):
+            if ast.op.type == MINUS:
+                return - self.evaluate(ast.expr)
+            if ast.op.type == PLUS:
+                return + self.evaluate(ast.expr)
+        return self._calc(ast.token, self.evaluate(ast.left), self.evaluate(ast.right))
+
+    def _calc(self, token, a, b):
+        if token.type == PLUS:
+            return a + b
+        if token.type == MINUS:
+            return a - b
+        if token.type == MULT:
+            return a * b
+
+        if token.type == DIV:
+            return a / b
+
+    
+    def interpret(self):
+        return self.evaluate(self.parser.parse())
+
+def main():
+    while True:
+        p = input('>>>')
+        if not p:
+            continue
+        if p == 'quit':
+            break
+        lexer = Lexer(p)
+        parser = Parser(lexer)
+        i = Intepreter(parser)
+        print(i.interpret())
+
+if __name__ == '__main__':
+    main()
 
 
-    
     
