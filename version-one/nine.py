@@ -150,7 +150,7 @@ class Lexer:
 class AST:
 
     def __init__(self, token):
-        self.token = token
+        self.token = tokenc
 
 class Binop(AST):
     def __init__(self, op, left, right):
