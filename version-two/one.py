@@ -249,7 +249,7 @@ class Parser:
         id_node = self.variable()
         
         self.eat(ASSIGN)
-        return AssignNode(id_token, self.expr())
+        return AssignNode(id_node, self.expr())
 
     def empty(self):
         return Noop()
@@ -310,22 +310,47 @@ class Parser:
             _result = Binop(_current_token, _result,  self.term())
         return _result
 
-    parse = lambda self: self.expr()
+    parse = lambda self: self.program()
 
 class Intepreter:
 
     def __init__(self, parser):
         self.parser = parser
+        self.GLOBAL = {}
     
     def evaluate(self, ast):
-        if isinstance(ast, Numop):
-            return ast.value
-        if isinstance(ast, Unop):
-            if ast.op.type == MINUS:
-                return - self.evaluate(ast.expr)
-            if ast.op.type == PLUS:
-                return + self.evaluate(ast.expr)
+        return getattr(self, self.evaluate.__name__ + '_' + type(ast).__name__)(ast)
+    
+    def evaluate_Numop(self, ast):
+        return ast.value
+
+    def evaluate_Unop(self, ast):
+        if ast.op.type == MINUS:
+            return - self.evaluate(ast.expr)
+        elif ast.op.type == PLUS:
+            return + self.evaluate(ast.expr)
+    
+    def evaluate_Binop(self, ast):
         return self._calc(ast.token, self.evaluate(ast.left), self.evaluate(ast.right))
+
+    def evaluate_AssignNode(self, ast):
+        var_name = ast.var.value
+        self.GLOBAL[var_name] = self.evaluate(ast.expr)
+    
+    def evaluate_Var(self, ast):
+        var_name = ast.value
+        value = self.GLOBAL.get(var_name)
+        if not value:
+            raise NameError('variable not used')
+        return value
+
+    def evaluate_CompoundNode(self, ast):
+        for child in ast.statements_nodes:
+            self.evaluate(child)
+    
+    def evaluate_Noop(self, node):
+        pass
+
 
     def _calc(self, token, a, b):
         if token.type == PLUS:
